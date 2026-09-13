@@ -19,7 +19,6 @@ import bootstrapper
 import backup
 import log
 import sober
-import quicksettings
 import sys
 
 BG = "#1e1e1e"
@@ -2100,6 +2099,7 @@ def build_backupmanager(app, parent, pad):
 
 
 def build_quicksettings(app, parent, pad):
+    import quicksettings
     def mkrow(label):
         f = tk.Frame(parent, bg=parent["bg"])
         f.pack(anchor="w", fill="x", padx=pad, pady=3)
