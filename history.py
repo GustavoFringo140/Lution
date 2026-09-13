@@ -102,10 +102,11 @@ def rel_time(ts):
     return _t.strftime("%b %d", _t.localtime(ts))
 
 def launch_place(place_id):
-    
     import subprocess
+    import sober
     url = f"roblox://experiences/start?placeId={place_id}"
     subprocess.Popen(["flatpak", "run", SOBER_APP_ID, url],
                      stdout=subprocess.DEVNULL,
                      stderr=subprocess.DEVNULL,
-                     stdin=subprocess.DEVNULL)
+                     stdin=subprocess.DEVNULL,
+                     env=sober.clean_env())

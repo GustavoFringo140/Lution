@@ -602,7 +602,8 @@ def run_launch(cfg, ui, root, url=None):
         LAUNCH_LOG.parent.mkdir(parents=True, exist_ok=True)
         with open(LAUNCH_LOG, "w") as logfile:
             proc = subprocess.Popen(args, stdout=logfile,
-                                    stderr=subprocess.STDOUT)
+                                    stderr=subprocess.STDOUT,
+                                    env=sober.clean_env())
 
         base = UPDATE_SCALE if cfg.get("check_updates", True) else 0.02
         span = 1.0 - base
@@ -703,8 +704,8 @@ def _clean_child_env():
 def _launch_full_lution(root):
     import sys
     log.info("Bootstrapper: opening Lution")
-    if getattr(sys, "frozen", False):
-        cmd = [sys.executable]
+    if _is_frozen():
+        cmd = [str(_bundle_exe())]
         cwd = None
     else:
         cmd = [sys.executable, str(Path(__file__).parent / "main.py")]
@@ -721,7 +722,7 @@ def run_standalone():
     cfg = get_config()
     _ensure_default_logo(cfg)
     win = _standalone_window(root, cfg)
-    ui = BootstrapperWindow(win, win, cfg, menu=True)
+    ui = BootstrapperWindow(root, win, cfg, menu=True)
     ui.pack(fill="both", expand=True)
 
     def play():
@@ -755,15 +756,24 @@ def _standalone_window(root, cfg):
 
 def _is_frozen():
     import sys
-    return getattr(sys, "frozen", False)
+    return bool(getattr(sys, "frozen", False) or globals().get("__compiled__"))
+
+def _bundle_exe():
+    import sys
+    if globals().get("__compiled__"):
+        arg0 = sys.argv[0]
+        if "/" not in arg0:
+            found = shutil.which(arg0)
+            if found:
+                return Path(found)
+        return Path(arg0)
+    return Path(sys.executable)
 
 def _sync_stable_binary():
-    import sys
-
     if not _is_frozen():
         return
 
-    exe = Path(sys.executable)
+    exe = _bundle_exe()
     try:
         stale = (not STABLE_BIN.exists()
                  or exe.stat().st_size != STABLE_BIN.stat().st_size

@@ -7,6 +7,7 @@ import subprocess
 import json
 import sys
 import threading
+import os
 
 import themes
 
@@ -112,8 +113,7 @@ WIDGET_BUILDERS = {
     "emojipicker": widgets.build_emojipicker,
     "versionlabel": widgets.build_versionlabel,
     "soberversion": widgets.build_soberversion,
-    "sobermanager": widgets.build_sobermanager,
-    "soberuninstall": widgets.build_soberuninstall,
+    "soberguide": widgets.build_soberguide,
     "soberlauncher": widgets.build_soberlauncher,
     "sobersettings": widgets.build_sobersettings,
     "playhistory": widgets.build_playhistory,
@@ -224,13 +224,9 @@ def parse_config(path):
             if current is not None:
                 pages[current].append(("soberversion",))
 
-        elif line == "SoberManager":
+        elif line == "SoberGuide":
             if current is not None:
-                pages[current].append(("sobermanager",))
-
-        elif line == "SoberUninstall":
-            if current is not None:
-                pages[current].append(("soberuninstall",))
+                pages[current].append(("soberguide",))
 
         elif line == "SoberLauncher":
             if current is not None:
@@ -284,9 +280,11 @@ def run_script(script, args=None):
     path = BASE / script
 
     if path.suffix == ".py":
-        subprocess.Popen(["python3", str(path), *args])
+        subprocess.Popen(["python3", str(path), *args],
+                         env=sober.clean_env())
     else:
-        subprocess.Popen([str(path), *args])
+        subprocess.Popen([str(path), *args],
+                         env=sober.clean_env())
 
 # the gui yay
 class Lution(tk.Tk):
@@ -318,8 +316,20 @@ class Lution(tk.Tk):
         self.reload_fflags_ui = lambda: None
 
         self.page_shown_listeners = []
-        self.build_sidebar()
-        self.build_content()
+        if os.environ.get("LUTION_QUIET_FONTCONFIG"):
+            saved = os.dup(2)
+            devnull = os.open(os.devnull, os.O_WRONLY)
+            os.dup2(devnull, 2)
+            os.close(devnull)
+            try:
+                self.build_sidebar()
+                self.build_content()
+            finally:
+                os.dup2(saved, 2)
+                os.close(saved)
+        else:
+            self.build_sidebar()
+            self.build_content()
 
     def setup_style(self):
         style = ttk.Style(self)

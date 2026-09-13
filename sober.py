@@ -1,6 +1,9 @@
 # basically managing sober like reinstalling uninstalling installing updating
+# this is now useless because it's replaced with a how to install sober etc etc button
 import subprocess
 from pathlib import Path
+import sys
+import os
 
 import log
 
@@ -9,18 +12,29 @@ REMOTE = "flathub"
 FLATHUB_REPO = "https://flathub.org/repo/flathub.flatpakrepo"
 SOBER_DATA_DIR = Path.home() / ".var/app" / SOBER_APP_ID
 
+
+def clean_env():
+    env = os.environ.copy()
+    lp = env.get("LD_LIBRARY_PATH", "")
+    if lp:
+        meipass = getattr(sys, "_MEIPASS", None)
+        keep = [p for p in lp.split(":") if p
+                and (not meipass or not p.startswith(meipass))]
+        env["LD_LIBRARY_PATH"] = ":".join(keep)
+    return env
+
+
 def _run(cmd, timeout=15):
     try:
         return subprocess.run(cmd, capture_output=True, text=True,
-                              timeout=timeout)
+                              timeout=timeout, env=clean_env())
     except subprocess.TimeoutExpired:
         log.warning(f"Command timed out after {timeout}s: {cmd[0]} {cmd[1] if len(cmd)>1 else ''}")
         return None
-
 def _stream(args, output_cb=None):
     try:
         proc = subprocess.Popen(args, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT)
+                                stderr=subprocess.STDOUT, env=clean_env())
     except FileNotFoundError:
         return False, "flatpak not found on this system"
 

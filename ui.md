@@ -1,8 +1,7 @@
 # Home
 SoberLauncher
 SoberSettings
-SoberManager
-SoberUninstall
+SoberGuide
 
 Subtitle = Play History
 PlayHistory

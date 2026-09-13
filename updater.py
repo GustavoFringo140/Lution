@@ -2,7 +2,7 @@
 import urllib.request
 import json
 
-VERSION = "0.4.3"
+VERSION = "0.4.6"
 REPO = "wookhq/Lution"
 API_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 

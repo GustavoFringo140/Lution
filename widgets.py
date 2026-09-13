@@ -17,6 +17,8 @@ import updater
 import envvars
 import bootstrapper
 import backup
+import log
+import sober
 import sys
 
 BG = "#1e1e1e"
@@ -438,18 +440,30 @@ def _open_presets_window(app, reload_fn, status):
 def _open_paste_json(app):
     win = tk.Toplevel(app, bg=BG)
     win.title("Paste FFlags JSON")
-    win.geometry("600x820")
     win.configure(bg=BG)
     win.resizable(False, False)
+
+    sw = win.winfo_screenwidth()
+    sh = win.winfo_screenheight()
+    win.geometry(f"600x{min(820, int(sh * 0.85))}")
 
     tk.Label(win, text="Paste FFlags JSON", bg=BG, fg=FG,
              font=("TkDefaultFont", 14, "bold"), anchor="w"
              ).pack(anchor="w", padx=16, pady=(16, 8))
 
-    text = tk.Text(win, bg=BG_ACTIVE, fg=FG, insertbackground=FG,
+    text_frame = tk.Frame(win, bg=BG_ACTIVE)
+    text_frame.pack(fill="both", expand=True, padx=16, pady=(0, 8))
+
+    text = tk.Text(text_frame, bg=BG_ACTIVE, fg=FG, insertbackground=FG,
                     font=BODY_FONT, relief="flat", wrap="word",
                     highlightthickness=1, highlightbackground=BG_SIDEBAR)
-    text.pack(fill="both", expand=True, padx=16, pady=(0, 8))
+    text_scroll = tk.Scrollbar(text_frame, orient="vertical",
+                                command=text.yview,
+                                bg=BG_SIDEBAR, troughcolor=BG_SIDEBAR,
+                                activebackground=FG_DIM, width=10)
+    text.configure(yscrollcommand=text_scroll.set)
+    text_scroll.pack(side="right", fill="y")
+    text.pack(side="left", fill="both", expand=True)
 
     status = tk.Label(win, text="", bg=BG, fg=FG_DIM,
                        font=("TkDefaultFont", 10), anchor="w")
@@ -1681,22 +1695,45 @@ def build_versionlabel(app, parent, pad):
     app.after(100, check)
 
 def build_soberversion(app, parent, pad):
-    version = "Unknown"
-    try:
-        result = subprocess.run(
-            ["flatpak", "info", "org.vinegarhq.Sober"],
-            capture_output=True, text=True, timeout=5
-        )
-        for line in result.stdout.splitlines():
-            if line.strip().startswith("Version:"):
-                version = line.split(":", 1)[1].strip()
-                break
-    except Exception:
-        pass
-    tk.Label(parent, text=f"Sober version: {version}",
-             bg=parent["bg"], fg=FG_DIM,
-             font=("TkDefaultFont", 11), anchor="w"
-             ).pack(anchor="w", padx=pad, pady=(0, 6))
+    version_lbl = tk.Label(parent, text="Sober version: Checking...",
+                           bg=parent["bg"], fg=FG_DIM,
+                           font=("TkDefaultFont", 11), anchor="w")
+    version_lbl.pack(anchor="w", padx=pad, pady=(0, 6))
+
+    def fetch(attempt=0):
+        try:
+            result = subprocess.run(
+                ["flatpak", "info", "org.vinegarhq.Sober"],
+                capture_output=True, text=True, timeout=8,
+                env=sober.clean_env()
+            )
+            version = "Unknown"
+            for line in result.stdout.splitlines():
+                log.debug(f"flatpak info: {line}")
+                if line.strip().startswith("Version:"):
+                    version = line.split(":", 1)[1].strip()
+                    break
+            for line in result.stderr.splitlines():
+                log.debug(f"flatpak info stderr: {line}")
+            if version != "Unknown":
+                log.info(f"Sober version: {version}")
+                version_lbl.configure(text=f"Sober version: {version}")
+                return
+            log.warning(f"Sober version not in flatpak output (rc={result.returncode})")
+            if attempt < 2:
+                version_lbl.configure(text="Sober version: ... (retrying)")
+                app.after(1500, lambda: fetch(attempt + 1))
+            else:
+                version_lbl.configure(text="Sober version: Unknown")
+        except Exception as e:
+            log.error(f"Sober version check failed: {e}")
+            if attempt < 2:
+                version_lbl.configure(text="Sober version: ... (retrying)")
+                app.after(1500, lambda: fetch(attempt + 1))
+            else:
+                version_lbl.configure(text="Sober version: Unknown")
+
+    app.after(300, fetch)
 
 def build_soberlauncher(app, parent, pad):
     import log
@@ -1713,7 +1750,8 @@ def build_sobersettings(app, parent, pad):
 
     def open_settings():
         log.info("Opening Sober settings")
-        subprocess.Popen(["flatpak", "run", "org.vinegarhq.Sober", "config"])
+        subprocess.Popen(["flatpak", "run", "org.vinegarhq.Sober", "config"],
+                         env=sober.clean_env())
 
     app.make_button(parent, "Open Sober Settings", command=open_settings
                      ).pack(anchor="w", padx=pad, pady=(4, 4))
@@ -1951,213 +1989,39 @@ def build_bootstrapper(app, parent, pad):
     app.make_button(btn_row, "Save & Install Shortcut", command=do_save
                      ).pack(side="left")
 
-def build_sobermanager(app, parent, pad):
-    import re
-    import threading
+def build_soberguide(app, parent, pad):
+    GUIDE = (
+        "Sober is installed and managed via Flatpak.\n\n"
+        "how to install sober:\n"
+        "$ flatpak update org.vinegarhq.Sober\n\n"
+        "how to uninstall sober:\n"
+        "$ flatpak uninstall org.vinegarhq.Sober\n\n"
+        "how to fully uninstall sober:\n"
+        "$ flatpak uninstall --delete-data org.vinegarhq.Sober\n\n"
+        "how to delete sober's data:\n"
+        "$ rm -rf ~/.var/app/org.vinegarhq.Sober/\n\n"
+        "how to update sober:\n"
+        "$ flatpak update org.vinegarhq.Sober\n\n"
+        "you also might aswell run flatpak update if sober is not using your dedicated graphics card or it feels laggy "
+    )
 
-    import sober
-
-    idle_text = "Install / Update Sober"
-    btn = app.make_button(parent, idle_text)
-    btn.pack(anchor="w", padx=pad, pady=(4, 4))
-
-    busy = {"flag": False}
-
-    def worker(win, log_text, bar, status_label):
-        pct_re = re.compile(r"(\d{1,3})\s*%")
-        state = {"pct": -1}
-
-        def safe(fn):
-            try:
-                if win.winfo_exists():
-                    fn()
-            except tk.TclError:
-                pass
-
-        def set_bar(value):
-            def do():
-                if bar["mode"] != "determinate":
-                    bar.stop()
-                    bar.configure(mode="determinate", maximum=100)
-                bar.configure(value=value)
-            safe(do)
-
-        def append_line(line):
-            def do():
-                log_text.configure(state="normal")
-                log_text.insert("end", line + "\n")
-                log_text.see("end")
-                log_text.configure(state="disabled")
-            safe(do)
-
-        def cb(line):
-            m = pct_re.search(line)
-            if m:
-                value = int(m.group(1))
-                app.after(0, lambda v=value: set_bar(v))
-                words = re.sub(r"[-\\|/.\s#=\[\]()>*•+=…\d%]", "", line)
-                jumped = state["pct"] == -1 or value == 100 or value - state["pct"] >= 10
-                state["pct"] = value
-                if words or jumped:
-                    app.after(0, lambda l=line: append_line(l))
-            else:
-                state["pct"] = -1
-                app.after(0, lambda l=line: append_line(l))
-
-        ok, _msg = sober.ensure_sober(cb)
-
-        def reset_btn():
-            btn.configure(text=idle_text)
-            busy["flag"] = False
-
-        def finish():
-            try:
-                alive = win.winfo_exists()
-            except tk.TclError:
-                alive = False
-            if alive:
-                try:
-                    bar.stop()
-                    if ok:
-                        bar.configure(mode="determinate", maximum=100,
-                                       value=100)
-                    status_label.configure(
-                        text="Finished successfully." if ok else "Something went wrong.",
-                        fg=ACCENT if ok else ERROR)
-                except tk.TclError:
-                    pass
-            btn.configure(text="Done" if ok else "Failed")
-            app.after(4000, reset_btn)
-
-        app.after(0, finish)
-
-    def open_window():
+    def open_guide():
         win = tk.Toplevel(app, bg=BG)
-        win.title("Install / Update Sober")
-        win.geometry("560x380")
+        win.title("Sober Guide")
+        win.geometry("520x440")
         win.configure(bg=BG)
         win.resizable(False, False)
 
-        bar = ttk.Progressbar(win, mode="indeterminate", length=100)
-        bar.pack(fill="x", padx=16, pady=(16, 8))
-        bar.start(12)
+        txt = tk.Text(win, bg=BG_ACTIVE, fg=FG,
+                       font=("TkDefaultFont", 12), relief="flat",
+                       highlightthickness=0, wrap="word",
+                       padx=16, pady=16, cursor="xterm")
+        txt.insert("1.0", GUIDE)
+        txt.configure(state="normal")
+        txt.pack(fill="both", expand=True)
 
-        log_frame = tk.Frame(win, bg=BG_SIDEBAR, highlightthickness=1,
-                              highlightbackground=BG_SIDEBAR)
-        log_frame.pack(fill="both", expand=True, padx=16, pady=(0, 10))
-
-        log_text = tk.Text(log_frame, bg=BG_ACTIVE, fg=FG,
-                            font=("TkDefaultFont", 10), relief="flat",
-                            highlightthickness=0, wrap="word",
-                            state="disabled")
-        log_scroll = tk.Scrollbar(log_frame, orient="vertical",
-                                   command=log_text.yview,
-                                   bg=BG_SIDEBAR, troughcolor=BG_SIDEBAR,
-                                   activebackground=FG_DIM, width=10)
-        log_text.configure(yscrollcommand=log_scroll.set)
-        log_scroll.pack(side="right", fill="y")
-        log_text.pack(side="left", fill="both", expand=True, padx=(2, 0),
-                       pady=2)
-
-        bottom = tk.Frame(win, bg=BG)
-        bottom.pack(fill="x", padx=16, pady=(0, 14))
-
-        status_label = tk.Label(bottom, text="Working...", bg=BG, fg=FG_DIM,
-                                 font=("TkDefaultFont", 10), anchor="w")
-        status_label.pack(side="left")
-
-        close_btn = app.make_button(bottom, "Close", command=win.destroy,
-                                     bg=BG_SIDEBAR, fg=FG_DIM,
-                                     padx=14, pady=6)
-        close_btn.pack(side="right")
-
-        return win, log_text, bar, status_label
-
-    def run():
-        if busy["flag"]:
-            return
-        busy["flag"] = True
-        btn.configure(text="Working...")
-        win, log_text, bar, status_label = open_window()
-        threading.Thread(target=worker,
-                          args=(win, log_text, bar, status_label),
-                          daemon=True).start()
-
-def build_soberuninstall(app, parent, pad):
-    import threading
-
-    import log
-    import sober
-
-    idle_text = "Uninstall Sober Completely"
-    busy = {"flag": False}
-
-    def worker():
-        log.info("Uninstalling Sober completely")
-        ok_flatpak, _msg = sober.uninstall()
-
-        if ok_flatpak:
-            if not sober.delete_sober_data():
-                log.error("Could not fully delete Sober data folder")
-        else:
-            log.warning("Flatpak uninstall failed, wiping data anyway")
-            sober.delete_sober_data()
-
-        ok = ok_flatpak
-
-        def reset():
-            btn.configure(text=idle_text)
-            busy["flag"] = False
-
-        def finish():
-            if ok:
-                log.info("Sober uninstalled")
-                btn.configure(text="Done")
-            else:
-                log.error("Sober uninstall failed")
-                btn.configure(text="Failed")
-            app.after(4000, reset)
-
-        app.after(0, finish)
-
-    def do_uninstall():
-        if busy["flag"]:
-            return
-        win = tk.Toplevel(app, bg=BG)
-        win.title("Uninstall Sober")
-        win.geometry("480x250")
-        win.configure(bg=BG)
-        win.resizable(False, False)
-
-        tk.Label(win, text="Completely remove Sober?",
-                 bg=BG, fg=FG, font=BODY_FONT,
-                 anchor="w").pack(anchor="w", padx=16, pady=(16, 8))
-
-        tk.Label(win,
-                 text=("This uninstalls Sober via flatpak AND deletes ALL of its "
-                       "data:\n~/.var/app/org.vinegarhq.Sober\n\n"
-                       "Your mods, fonts, cursors, sounds and every Sober "
-                       "setting will be gone forever. This cannot be undone."),
-                 bg=BG, fg=ERROR, font=("TkDefaultFont", 10),
-                 anchor="w", justify="left",
-                 wraplength=420).pack(anchor="w", padx=16, pady=(0, 12))
-
-        btn_row = tk.Frame(win, bg=BG)
-        btn_row.pack(anchor="w", padx=16, pady=(0, 16))
-
-        def confirm():
-            win.destroy()
-            busy["flag"] = True
-            btn.configure(text="Working...")
-            threading.Thread(target=worker, daemon=True).start()
-
-        app.make_button(btn_row, "Delete Everything", command=confirm,
-                          bg=ERROR, fg="#0a0a0a", padx=12, pady=6
-                          ).pack(side="left", padx=(0, 8))
-        app.make_button(btn_row, "Cancel", command=win.destroy,
-                          padx=12, pady=6).pack(side="left")
-
-    btn = app.make_button(parent, idle_text, command=do_uninstall)
+    btn = app.make_button(parent, "How to uninstall / update / install Sober",
+                          command=open_guide)
     btn.pack(anchor="w", padx=pad, pady=(4, 4))
 
 def build_resetall(app, parent, pad):
