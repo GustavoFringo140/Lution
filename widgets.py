@@ -19,6 +19,7 @@ import bootstrapper
 import backup
 import log
 import sober
+import quicksettings
 import sys
 
 BG = "#1e1e1e"
@@ -2095,4 +2096,79 @@ def build_backupmanager(app, parent, pad):
                 status.configure(text=str(e), fg=ERROR)
 
     app.make_button(parent, "Import Backup", command=do_import
+                     ).pack(anchor="w", padx=pad, pady=(0, 14))
+
+
+def build_quicksettings(app, parent, pad):
+    form = tk.Frame(parent, bg=parent["bg"])
+    form.pack(anchor="w", fill="x", padx=pad, pady=(0, 8))
+    form.columnconfigure(1, weight=1)
+
+    row = [0]
+
+    def add_row(label):
+        r = row[0]; row[0] += 1
+        tk.Label(form, text=label, bg=parent["bg"], fg=FG,
+                 font=BODY_FONT).grid(row=r, column=0, sticky="w",
+                                       padx=(0, 14), pady=4)
+        holder = tk.Frame(form, bg=parent["bg"])
+        holder.grid(row=r, column=1, sticky="w", pady=3)
+        return holder
+
+    def combo(holder, values, initial):
+        var = tk.StringVar(value=initial)
+        ttk.Combobox(holder, values=values, textvariable=var,
+                      font=("TkDefaultFont", 11), state="readonly",
+                      width=18).pack(side="left")
+        return var
+
+    def checkvar(holder, initial, label=""):
+        var = tk.BooleanVar(value=initial)
+        tk.Checkbutton(holder, variable=var, bg=parent["bg"], fg=FG,
+                        selectcolor=BG_ACTIVE, activebackground=parent["bg"],
+                        activeforeground=FG, text=label,
+                        font=("TkDefaultFont", 11)).pack(side="left")
+        return var
+
+    renderer_var = combo(add_row("Renderer"),
+                         ["Vulkan", "OpenGL"],
+                         quicksettings.get_renderer())
+
+    lighting_var = combo(add_row("Lighting Technology"),
+                         list(quicksettings.LIGHTING_OPTIONS),
+                         quicksettings.get_lighting())
+
+    msaa_var = combo(add_row("Anti-Aliasing (MSAA)"),
+                     list(quicksettings.MSAA_OPTIONS),
+                     quicksettings.get_msaa())
+
+    texture_var = combo(add_row("Texture Quality"),
+                        list(quicksettings.TEXTURE_LEVELS),
+                        quicksettings.get_texture())
+
+    rpc_var   = checkvar(add_row("Discord RPC"),
+                         quicksettings.get_discord_rpc(), "Enabled")
+    shadow_var = checkvar(add_row("Player Shadows"),
+                          not quicksettings.get_shadows_disabled(), "Enabled")
+    chat_var   = checkvar(add_row("Bubble Chat"),
+                          not quicksettings.get_chat_disabled(), "Enabled")
+
+    status = tk.Label(parent, text="", bg=parent["bg"], fg=FG_DIM,
+                       font=("TkDefaultFont", 10), anchor="w")
+    status.pack(anchor="w", padx=pad, pady=(0, 4))
+
+    def save():
+        try:
+            quicksettings.set_renderer(renderer_var.get())
+            quicksettings.set_lighting(lighting_var.get())
+            quicksettings.set_msaa(msaa_var.get())
+            quicksettings.set_texture(texture_var.get())
+            quicksettings.set_discord_rpc(rpc_var.get())
+            quicksettings.set_shadows_disabled(not shadow_var.get())
+            quicksettings.set_chat_disabled(not chat_var.get())
+            status.configure(text="Saved. Restart Roblox to apply.", fg=FG_DIM)
+        except Exception as e:
+            status.configure(text=str(e), fg=ERROR)
+
+    app.make_button(parent, "Save Quick Settings", command=save
                      ).pack(anchor="w", padx=pad, pady=(0, 14))

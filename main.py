@@ -123,6 +123,7 @@ WIDGET_BUILDERS = {
     "modconflicts": widgets.build_modconflicts,
     "modmanager": widgets.build_modmanager,
     "soundmods": widgets.build_soundmods,
+    "quicksettings": widgets.build_quicksettings,
 }
 
 def darken(hex_color, amount=0.18):

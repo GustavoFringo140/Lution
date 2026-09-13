@@ -17,6 +17,9 @@ Bootstrapper
 Marketplace
 
 # FastFlags
+Subtitle = Quick Settings
+QuickSettings
+
 Subtitle = Active FFlags
 FlagList
 
