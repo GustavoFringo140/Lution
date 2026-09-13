@@ -2100,62 +2100,51 @@ def build_backupmanager(app, parent, pad):
 
 
 def build_quicksettings(app, parent, pad):
-    form = tk.Frame(parent, bg=parent["bg"])
-    form.pack(anchor="w", fill="x", padx=pad, pady=(0, 8))
-    form.columnconfigure(1, weight=1)
+    def mkrow(label):
+        f = tk.Frame(parent, bg=parent["bg"])
+        f.pack(anchor="w", fill="x", padx=pad, pady=3)
+        tk.Label(f, text=label, bg=parent["bg"], fg=FG,
+                 font=BODY_FONT, width=22, anchor="w").pack(side="left")
+        return f
 
-    row = [0]
+    renderer_var = tk.StringVar(value=quicksettings.get_renderer())
+    ttk.Combobox(mkrow("Renderer"), textvariable=renderer_var,
+                  values=["Vulkan", "OpenGL"], state="readonly",
+                  width=18).pack(side="left")
 
-    def add_row(label):
-        r = row[0]; row[0] += 1
-        tk.Label(form, text=label, bg=parent["bg"], fg=FG,
-                 font=BODY_FONT).grid(row=r, column=0, sticky="w",
-                                       padx=(0, 14), pady=4)
-        holder = tk.Frame(form, bg=parent["bg"])
-        holder.grid(row=r, column=1, sticky="w", pady=3)
-        return holder
+    lighting_var = tk.StringVar(value=quicksettings.get_lighting())
+    ttk.Combobox(mkrow("Lighting Technology"), textvariable=lighting_var,
+                  values=list(quicksettings.LIGHTING_OPTIONS), state="readonly",
+                  width=18).pack(side="left")
 
-    def combo(holder, values, initial):
-        var = tk.StringVar(value=initial)
-        ttk.Combobox(holder, values=values, textvariable=var,
-                      font=("TkDefaultFont", 11), state="readonly",
-                      width=18).pack(side="left")
-        return var
+    msaa_var = tk.StringVar(value=quicksettings.get_msaa())
+    ttk.Combobox(mkrow("Anti-Aliasing (MSAA)"), textvariable=msaa_var,
+                  values=list(quicksettings.MSAA_OPTIONS), state="readonly",
+                  width=18).pack(side="left")
 
-    def checkvar(holder, initial, label=""):
-        var = tk.BooleanVar(value=initial)
-        tk.Checkbutton(holder, variable=var, bg=parent["bg"], fg=FG,
-                        selectcolor=BG_ACTIVE, activebackground=parent["bg"],
-                        activeforeground=FG, text=label,
-                        font=("TkDefaultFont", 11)).pack(side="left")
-        return var
+    texture_var = tk.StringVar(value=quicksettings.get_texture())
+    ttk.Combobox(mkrow("Texture Quality"), textvariable=texture_var,
+                  values=list(quicksettings.TEXTURE_LEVELS), state="readonly",
+                  width=18).pack(side="left")
 
-    renderer_var = combo(add_row("Renderer"),
-                         ["Vulkan", "OpenGL"],
-                         quicksettings.get_renderer())
+    rpc_var = tk.BooleanVar(value=quicksettings.get_discord_rpc())
+    tk.Checkbutton(mkrow("Discord RPC"), variable=rpc_var, text="Enabled",
+                    bg=parent["bg"], fg=FG, selectcolor=BG_ACTIVE,
+                    activebackground=parent["bg"], activeforeground=FG).pack(side="left")
 
-    lighting_var = combo(add_row("Lighting Technology"),
-                         list(quicksettings.LIGHTING_OPTIONS),
-                         quicksettings.get_lighting())
+    shadow_var = tk.BooleanVar(value=not quicksettings.get_shadows_disabled())
+    tk.Checkbutton(mkrow("Player Shadows"), variable=shadow_var, text="Enabled",
+                    bg=parent["bg"], fg=FG, selectcolor=BG_ACTIVE,
+                    activebackground=parent["bg"], activeforeground=FG).pack(side="left")
 
-    msaa_var = combo(add_row("Anti-Aliasing (MSAA)"),
-                     list(quicksettings.MSAA_OPTIONS),
-                     quicksettings.get_msaa())
-
-    texture_var = combo(add_row("Texture Quality"),
-                        list(quicksettings.TEXTURE_LEVELS),
-                        quicksettings.get_texture())
-
-    rpc_var   = checkvar(add_row("Discord RPC"),
-                         quicksettings.get_discord_rpc(), "Enabled")
-    shadow_var = checkvar(add_row("Player Shadows"),
-                          not quicksettings.get_shadows_disabled(), "Enabled")
-    chat_var   = checkvar(add_row("Bubble Chat"),
-                          not quicksettings.get_chat_disabled(), "Enabled")
+    chat_var = tk.BooleanVar(value=not quicksettings.get_chat_disabled())
+    tk.Checkbutton(mkrow("Bubble Chat"), variable=chat_var, text="Enabled",
+                    bg=parent["bg"], fg=FG, selectcolor=BG_ACTIVE,
+                    activebackground=parent["bg"], activeforeground=FG).pack(side="left")
 
     status = tk.Label(parent, text="", bg=parent["bg"], fg=FG_DIM,
                        font=("TkDefaultFont", 10), anchor="w")
-    status.pack(anchor="w", padx=pad, pady=(0, 4))
+    status.pack(anchor="w", padx=pad, pady=(4, 2))
 
     def save():
         try:
