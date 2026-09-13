@@ -265,6 +265,10 @@ def parse_config(path):
             if current is not None:
                 pages[current].append(("soundmods",))
 
+        elif line == "QuickSettings":
+            if current is not None:
+                pages[current].append(("quicksettings",))
+
         elif line.startswith("Image = "):
             rest = line[len("Image = "):].strip()
             if "|" in rest:
