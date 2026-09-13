@@ -1,42 +1,30 @@
 from pathlib import Path
-import json
 import fflags
 
 SOBER_APP_ID = "org.vinegarhq.Sober"
 SOBER_CONFIG = Path.home() / ".var/app" / SOBER_APP_ID / "config/sober/config.json"
 
 
-def _load_sober():
-    try:
-        return json.loads(SOBER_CONFIG.read_text())
-    except Exception:
-        return {}
-
-
-def _save_sober(data):
-    SOBER_CONFIG.parent.mkdir(parents=True, exist_ok=True)
-    SOBER_CONFIG.write_text(json.dumps(data, indent=4) + "\n")
-
-
 def get_renderer():
-    use_opengl = _load_sober().get("use_opengl")
-    return "OpenGL" if use_opengl else "Vulkan"
+    data, _ = fflags.load_config()
+    return "OpenGL" if data.get("use_opengl") else "Vulkan"
 
 
 def set_renderer(value):
-    data = _load_sober()
+    data, comments = fflags.load_config()
     data["use_opengl"] = (value == "OpenGL")
-    _save_sober(data)
+    fflags.save_config(data, comments)
 
 
 def get_discord_rpc():
-    return _load_sober().get("discord_rpc_enabled", True)
+    data, _ = fflags.load_config()
+    return data.get("discord_rpc_enabled", True)
 
 
 def set_discord_rpc(enabled):
-    data = _load_sober()
+    data, comments = fflags.load_config()
     data["discord_rpc_enabled"] = bool(enabled)
-    _save_sober(data)
+    fflags.save_config(data, comments)
 
 
 LIGHTING_FLAGS = {
