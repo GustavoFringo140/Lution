@@ -124,6 +124,8 @@ WIDGET_BUILDERS = {
     "modmanager": widgets.build_modmanager,
     "soundmods": widgets.build_soundmods,
     "quicksettings": widgets.build_quicksettings,
+    "cachecleaner": widgets.build_cachecleaner,
+    "gameshortcuts": widgets.build_gameshortcuts,
 }
 
 def darken(hex_color, amount=0.18):
@@ -268,6 +270,14 @@ def parse_config(path):
         elif line == "QuickSettings":
             if current is not None:
                 pages[current].append(("quicksettings",))
+
+        elif line == "CacheCleaner":
+            if current is not None:
+                pages[current].append(("cachecleaner",))
+
+        elif line == "GameShortcuts":
+            if current is not None:
+                pages[current].append(("gameshortcuts",))
 
         elif line.startswith("Image = "):
             rest = line[len("Image = "):].strip()

@@ -2161,3 +2161,142 @@ def build_quicksettings(app, parent, pad):
 
     app.make_button(parent, "Save Quick Settings", command=save
                      ).pack(anchor="w", padx=pad, pady=(0, 14))
+
+
+def build_cachecleaner(app, parent, pad):
+    import cache
+
+    sizes = {}
+    labels = {}
+
+    def refresh():
+        data = cache.scan()
+        for name, mb in data.items():
+            sizes[name] = mb
+            if name in labels:
+                labels[name].configure(text=f"{mb:.1f} MB")
+
+    def do_clear(name):
+        freed = cache.clear(name)
+        status.configure(text=f"Cleared {name} — freed {freed:.1f} MB", fg=FG_DIM)
+        refresh()
+
+    def do_clear_all():
+        freed = cache.clear_all()
+        status.configure(text=f"Cleared all — freed {freed:.1f} MB", fg=FG_DIM)
+        refresh()
+
+    data = cache.scan()
+    for name, mb in data.items():
+        row = tk.Frame(parent, bg=parent["bg"])
+        row.pack(anchor="w", fill="x", padx=pad, pady=3)
+
+        tk.Label(row, text=name, bg=parent["bg"], fg=FG,
+                 font=BODY_FONT, width=16, anchor="w").pack(side="left")
+
+        lbl = tk.Label(row, text=f"{mb:.1f} MB", bg=parent["bg"], fg=FG_DIM,
+                       font=("TkDefaultFont", 11), width=10, anchor="w")
+        lbl.pack(side="left")
+        labels[name] = lbl
+
+        n = name
+        app.make_button(row, "Clear", command=lambda n=n: do_clear(n),
+                         padx=10, pady=3).pack(side="left")
+
+    status = tk.Label(parent, text="", bg=parent["bg"], fg=FG_DIM,
+                       font=("TkDefaultFont", 10), anchor="w")
+    status.pack(anchor="w", padx=pad, pady=(4, 2))
+
+    app.make_button(parent, "Clear All", command=do_clear_all,
+                     bg=ERROR, fg="#0a0a0a", padx=12
+                     ).pack(anchor="w", padx=pad, pady=(0, 14))
+
+
+def build_gameshortcuts(app, parent, pad):
+    import shortcuts
+
+    btn_frame = tk.Frame(parent, bg=parent["bg"])
+    btn_frame.pack(anchor="w", fill="x", padx=pad, pady=(0, 8))
+
+    status = tk.Label(parent, text="", bg=parent["bg"], fg=FG_DIM,
+                       font=("TkDefaultFont", 10), anchor="w")
+    status.pack(anchor="w", padx=pad, pady=(0, 4))
+
+    def refresh():
+        for w in btn_frame.winfo_children():
+            w.destroy()
+
+        data = shortcuts.load()
+        if not data:
+            tk.Label(btn_frame, text="No shortcuts yet.", bg=parent["bg"],
+                     fg=FG_DIM, font=("TkDefaultFont", 11)
+                     ).pack(anchor="w")
+            return
+
+        for name, place_id in data.items():
+            row = tk.Frame(btn_frame, bg=parent["bg"])
+            row.pack(anchor="w", fill="x", pady=2)
+
+            n, pid = name, place_id
+            app.make_button(row, f"▶  {n}", command=lambda p=pid: shortcuts.launch(p),
+                             padx=14, pady=5).pack(side="left", padx=(0, 6))
+
+            tk.Label(row, text=f"ID: {pid}", bg=parent["bg"], fg=FG_DIM,
+                     font=("TkDefaultFont", 10)).pack(side="left", padx=(0, 10))
+
+            app.make_button(row, "✕", command=lambda n=n: remove_shortcut(n),
+                             bg=BG_SIDEBAR, fg=FG_DIM, padx=8, pady=4
+                             ).pack(side="left")
+
+    def remove_shortcut(name):
+        shortcuts.remove(name)
+        refresh()
+
+    def open_add():
+        win = tk.Toplevel(app, bg=BG)
+        win.title("Add Game Shortcut")
+        win.geometry("460x200")
+        win.resizable(False, False)
+
+        tk.Label(win, text="Game name:", bg=BG, fg=FG,
+                 font=BODY_FONT).pack(anchor="w", padx=16, pady=(16, 2))
+        name_entry = tk.Entry(win, bg=BG_ACTIVE, fg=FG, insertbackground=FG,
+                               font=BODY_FONT, relief="flat", width=40,
+                               highlightthickness=1, highlightbackground=BG_SIDEBAR,
+                               highlightcolor=ACCENT)
+        name_entry.pack(anchor="w", padx=16, ipady=6)
+        name_entry.focus()
+
+        tk.Label(win, text="Place ID or Roblox URL:", bg=BG, fg=FG,
+                 font=BODY_FONT).pack(anchor="w", padx=16, pady=(8, 2))
+        id_entry = tk.Entry(win, bg=BG_ACTIVE, fg=FG, insertbackground=FG,
+                             font=BODY_FONT, relief="flat", width=40,
+                             highlightthickness=1, highlightbackground=BG_SIDEBAR,
+                             highlightcolor=ACCENT)
+        id_entry.pack(anchor="w", padx=16, ipady=6)
+
+        err = tk.Label(win, text="", bg=BG, fg=ERROR, font=("TkDefaultFont", 10))
+        err.pack(anchor="w", padx=16)
+
+        def do_add():
+            name = name_entry.get().strip()
+            place_id = shortcuts.parse_place_id(id_entry.get())
+            if not name:
+                err.configure(text="Enter a name.")
+                return
+            if not place_id:
+                err.configure(text="Invalid place ID or URL.")
+                return
+            shortcuts.add(name, place_id)
+            win.destroy()
+            refresh()
+            status.configure(text=f"Added '{name}'", fg=FG_DIM)
+
+        id_entry.bind("<Return>", lambda e: do_add())
+        app.make_button(win, "Add", command=do_add, padx=12, pady=6
+                         ).pack(anchor="w", padx=16, pady=(8, 0))
+
+    app.make_button(parent, "+ Add Shortcut", command=open_add,
+                     padx=12).pack(anchor="w", padx=pad, pady=(0, 8))
+
+    refresh()

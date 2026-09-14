@@ -6,6 +6,9 @@ SoberGuide
 Subtitle = Play History
 PlayHistory
 
+Subtitle = Game Shortcuts
+GameShortcuts
+
 # Launcher
 Subtitle = Environment Variables
 EnvVars
@@ -49,6 +52,9 @@ SoundMods
 # Backup
 Subtitle = Backup & Restore
 BackupManager
+
+Subtitle = Cache Cleaner
+CacheCleaner
 
 ResetAll
 
