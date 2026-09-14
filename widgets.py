@@ -1738,26 +1738,12 @@ def build_soberversion(app, parent, pad):
 def build_soberlauncher(app, parent, pad):
     import log
 
-    row = tk.Frame(parent, bg=parent["bg"])
-    row.pack(anchor="w", padx=pad, pady=(4, 4))
-
     def run():
         log.info("Launch Sober clicked")
         bootstrapper.open_in(app)
 
-    def run_new():
-        log.info("Launch new Sober instance clicked")
-        import subprocess
-        import sober
-        try:
-            subprocess.Popen(["dbus-run-session", "flatpak", "run", "org.vinegarhq.Sober"],
-                             env=sober.clean_env())
-        except FileNotFoundError:
-            pass
-
-    app.make_button(row, "Launch Sober", command=run).pack(side="left", padx=(0, 6))
-    app.make_button(row, "+ New Instance", command=run_new,
-                     bg=BG_SIDEBAR).pack(side="left")
+    app.make_button(parent, "Launch Sober", command=run
+                     ).pack(anchor="w", padx=pad, pady=(4, 4))
 
 def build_sobersettings(app, parent, pad):
     import log
