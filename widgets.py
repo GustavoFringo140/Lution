@@ -1738,12 +1738,26 @@ def build_soberversion(app, parent, pad):
 def build_soberlauncher(app, parent, pad):
     import log
 
+    row = tk.Frame(parent, bg=parent["bg"])
+    row.pack(anchor="w", padx=pad, pady=(4, 4))
+
     def run():
         log.info("Launch Sober clicked")
         bootstrapper.open_in(app)
 
-    app.make_button(parent, "Launch Sober", command=run
-                     ).pack(anchor="w", padx=pad, pady=(4, 4))
+    def run_new():
+        log.info("Launch new Sober instance clicked")
+        import subprocess
+        import sober
+        try:
+            subprocess.Popen(["flatpak", "run", "org.vinegarhq.Sober"],
+                             env=sober.clean_env())
+        except FileNotFoundError:
+            pass
+
+    app.make_button(row, "Launch Sober", command=run).pack(side="left", padx=(0, 6))
+    app.make_button(row, "+ New Instance", command=run_new,
+                     bg=BG_SIDEBAR).pack(side="left")
 
 def build_sobersettings(app, parent, pad):
     import log
@@ -2238,13 +2252,13 @@ def build_gameshortcuts(app, parent, pad):
             row.pack(anchor="w", fill="x", pady=2)
 
             n, pid = name, place_id
-            app.make_button(row, f"▶  {n}", command=lambda p=pid: shortcuts.launch(p),
+            app.make_button(row, f"> {n}", command=lambda p=pid: shortcuts.launch(p),
                              padx=14, pady=5).pack(side="left", padx=(0, 6))
 
             tk.Label(row, text=f"ID: {pid}", bg=parent["bg"], fg=FG_DIM,
                      font=("TkDefaultFont", 10)).pack(side="left", padx=(0, 10))
 
-            app.make_button(row, "✕", command=lambda n=n: remove_shortcut(n),
+            app.make_button(row, "x", command=lambda n=n: remove_shortcut(n),
                              bg=BG_SIDEBAR, fg=FG_DIM, padx=8, pady=4
                              ).pack(side="left")
 
