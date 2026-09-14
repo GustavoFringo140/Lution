@@ -1750,7 +1750,7 @@ def build_soberlauncher(app, parent, pad):
         import subprocess
         import sober
         try:
-            subprocess.Popen(["flatpak", "run", "org.vinegarhq.Sober"],
+            subprocess.Popen(["dbus-run-session", "flatpak", "run", "org.vinegarhq.Sober"],
                              env=sober.clean_env())
         except FileNotFoundError:
             pass
